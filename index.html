@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>AOA Day/Night Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding-top: 10%;
+      background: #f4f4f4;
+    }
+
+    #timeUTC,
+    #timeLocal {
+      font-size: 4.5rem;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+
+    #status {
+      font-size: 7rem;
+      font-weight: bold;
+    }
+
+    .day {
+      color: #B8860B;
+    }
+
+    .night {
+      color: #003366;
+    }
+
+    #notify {
+      margin-top: 20px;
+      font-size: 1.5rem;
+      color: #444;
+      height: 2rem;
+    }
+
+    .label {
+      font-size: 1.3rem;
+      color: #333;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="label">UTC Time:</div>
+  <div id="timeUTC">Loading…</div>
+
+  <div id="status"></div>
+  <div id="notify"></div>
+
+  <hr style="margin: 40px;">
+
+  <div class="label">Your Local Time:</div>
+  <div id="timeLocal">Loading…</div>
+
+  <script>
+    // ---- Notification Permission ----
+    function requestNotificationPermission() {
+      if (!("Notification" in window)) {
+        console.log("Your browser does not support notifications.");
+        return;
+      }
+
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then(permission => {
+          console.log("Notification permission:", permission);
+        });
+      }
+    }
+
+    // Call permission request on load
+    requestNotificationPermission();
+
+
+    // ---- Day/Night Logic ----
+    function getDayNightStatus(hour, minute) {
+      const even = hour % 2 === 0;
+
+      if (even) {
+        if (minute >= 0 && minute < 16) return "day";
+        if (minute >= 16 && minute < 24) return "night";
+        if (minute >= 24 && minute < 40) return "day";
+        if (minute >= 40 && minute < 48) return "night";
+        return "day"; // 48–59 → day
+      } else {
+        if (minute >= 0 && minute < 4) return "night";
+        if (minute >= 4 && minute < 12) return "night";
+        if (minute >= 12 && minute < 28) return "day";
+        if (minute >= 28 && minute < 36) return "night";
+        if (minute >= 36 && minute < 52) return "day";
+        return "night"; // 52–59 → night
+      }
+    }
+
+    let lastStatus = null;
+
+    // ---- Desktop/Mobile Notification ----
+    function sendPushNotification(newStatus) {
+      if (Notification.permission !== "granted") return;
+
+      const title = "Status Change";
+      const body = `It is now ${newStatus.toUpperCase()}.`;
+
+      new Notification(title, { body: body });
+    }
+
+    function notifyChange(newStatus) {
+      const msg = `Status changed: ${newStatus.toUpperCase()}`;
+      console.log(msg);
+
+      // On-screen message
+      const notifyDiv = document.getElementById("notify");
+      notifyDiv.textContent = msg;
+
+      // Desktop/Mobile notification
+      sendPushNotification(newStatus);
+
+      setTimeout(() => {
+        notifyDiv.textContent = "";
+      }, 4000);
+    }
+
+
+    // ---- Time Update ----
+    function updateTime() {
+      const nowUTC = new Date();
+
+      const hour = nowUTC.getUTCHours();
+      const minute = nowUTC.getUTCMinutes();
+      const second = nowUTC.getUTCSeconds();
+
+      const status = getDayNightStatus(hour, minute);
+
+      // detect change
+      if (lastStatus !== null && status !== lastStatus) {
+        notifyChange(status);
+      }
+      lastStatus = status;
+
+      // UTC Clock
+      const timeUTCStr = nowUTC.toLocaleTimeString("en-GB", {
+        timeZone: "UTC",
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      document.getElementById("timeUTC").textContent = timeUTCStr;
+
+      // Day/Night UI
+      const statusDiv = document.getElementById("status");
+      statusDiv.textContent = status.toUpperCase();
+      statusDiv.className = status;
+
+      // Local device time
+      const timeLocalStr = nowUTC.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      document.getElementById("timeLocal").textContent = timeLocalStr;
+    }
+
+    setInterval(updateTime, 1000);
+    updateTime();
+  </script>
+
+</body>
+
+</html>
